@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  redeem-service:
+    build:
+      context: .
+      dockerfile: src/RedeemService/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    networks:
+      - coupons-network
+
+  campaign-service:
+    build:
+      context: .
+      dockerfile: src/CampaignService/Dockerfile
+    ports:
+      - "8081:8080"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ASPNETCORE_URLS=http://+:8080
+    networks:
+      - coupons-network
+
+  coupon-generator:
+    build:
+      context: .
+      dockerfile: src/CouponGenerator/Dockerfile
+    environment:
+      - AMOUNT=1000
+      - PREFIX=DEMO
+      - CAMPAIGN_ID=demo-campaign
+    networks:
+      - coupons-network
+    profiles:
+      - generator
+
+networks:
+  coupons-network:
+    driver: bridge

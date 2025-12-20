@@ -1,0 +1,265 @@
+using Shared.Models.Models;
+using Shared.Models.DTOs;
+
+namespace RedeemService.Services;
+
+public interface ICouponService
+{
+    Task<CouponStatusResponse?> GetCouponStatusAsync(string code);
+    Task<RedeemResponse> RedeemCouponAsync(RedeemRequest request);
+}
+
+public class CouponService : ICouponService
+{
+    private static readonly Dictionary<string, Coupon> _coupons = new();
+    private static readonly Dictionary<string, HashSet<string>> _userRedemptions = new();
+    private readonly ILogger<CouponService> _logger;
+
+    public CouponService(ILogger<CouponService> logger)
+    {
+        _logger = logger;
+        
+        // Initialize demo coupons only once
+        if (_coupons.Count == 0)
+        {
+            _coupons.Add("CUPON10OFF", new Coupon
+            {
+                CouponCode = "CUPON10OFF",
+                CampaignId = "CAMPAIGN-2025-BlackFriday",
+                Valid = true,
+                Redeemed = false,
+                ExpiresAt = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
+                CreatedAt = DateTime.UtcNow
+            });
+            
+            _coupons.Add("DEMO50", new Coupon
+            {
+                CouponCode = "DEMO50",
+                CampaignId = "CAMPAIGN-2025-Demo",
+                Valid = true,
+                Redeemed = false,
+                ExpiresAt = new DateTime(2025, 12, 31, 23, 59, 59, DateTimeKind.Utc),
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+    }
+
+    public Task<CouponStatusResponse?> GetCouponStatusAsync(string code)
+    {
+        if (!_coupons.TryGetValue(code, out var coupon))
+        {
+            return Task.FromResult<CouponStatusResponse?>(null);
+        }
+
+        var response = new CouponStatusResponse
+        {
+            CouponCode = coupon.CouponCode,
+            Valid = coupon.Valid,
+            Redeemed = coupon.Redeemed,
+            ExpiresAt = coupon.ExpiresAt,
+            CampaignId = coupon.CampaignId,
+            AssignedTo = coupon.AssignedTo
+        };
+
+        return Task.FromResult<CouponStatusResponse?>(response);
+    }
+
+    public Task<RedeemResponse> RedeemCouponAsync(RedeemRequest request)
+    {
+        if (!_coupons.TryGetValue(request.CouponCode, out var coupon))
+        {
+            _logger.LogWarning("Coupon {CouponCode} not found", request.CouponCode);
+            return Task.FromResult(new RedeemResponse
+            {
+                Redeemed = false,
+                CouponCode = request.CouponCode,
+                Message = "El cupón ingresado no existe.",
+                CampaignId = string.Empty
+            });
+        }
+
+        if (!coupon.Valid)
+        {
+            return Task.FromResult(new RedeemResponse
+            {
+                Redeemed = false,
+                CouponCode = request.CouponCode,
+                Message = "El cupón no es válido.",
+                CampaignId = coupon.CampaignId
+            });
+        }
+
+        if (coupon.Redeemed)
+        {
+            _logger.LogWarning("Coupon {CouponCode} already redeemed", request.CouponCode);
+            return Task.FromResult(new RedeemResponse
+            {
+                Redeemed = false,
+                CouponCode = request.CouponCode,
+                Message = "El cupón ya ha sido canjeado.",
+                CampaignId = coupon.CampaignId
+            });
+        }
+
+        if (coupon.ExpiresAt.HasValue && coupon.ExpiresAt.Value < DateTime.UtcNow)
+        {
+            return Task.FromResult(new RedeemResponse
+            {
+                Redeemed = false,
+                CouponCode = request.CouponCode,
+                Message = "El cupón ha expirado.",
+                CampaignId = coupon.CampaignId
+            });
+        }
+
+        if (!_userRedemptions.ContainsKey(request.UserId))
+        {
+            _userRedemptions[request.UserId] = new HashSet<string>();
+        }
+
+        if (_userRedemptions[request.UserId].Contains(coupon.CampaignId))
+        {
+            return Task.FromResult(new RedeemResponse
+            {
+                Redeemed = false,
+                CouponCode = request.CouponCode,
+                Message = "Ya has canjeado un cupón de esta campaña.",
+                CampaignId = coupon.CampaignId
+            });
+        }
+
+        coupon.Redeemed = true;
+        coupon.RedeemedAt = DateTime.UtcNow;
+        coupon.AssignedTo = request.UserId;
+        _userRedemptions[request.UserId].Add(coupon.CampaignId);
+
+        _logger.LogInformation("Coupon {CouponCode} redeemed by user {UserId}", request.CouponCode, request.UserId);
+
+        return Task.FromResult(new RedeemResponse
+        {
+            Redeemed = true,
+            CouponCode = request.CouponCode,
+            Message = "Cupón canjeado exitosamente",
+            CampaignId = coupon.CampaignId
+        });
+    }
+}
+            var couponCodeParam = new SqlParameter("@CouponCode", code);
+            
+            var result = await _context.Database
+                .SqlQueryRaw<CouponDetailsResult>(
+                    "EXEC sp_GetCouponDetails @CouponCode",
+                    couponCodeParam)
+                .ToListAsync();
+
+            var couponDetails = result.FirstOrDefault();
+            
+            if (couponDetails == null)
+            {
+                return null;
+            }
+
+            return new CouponStatusResponse
+            {
+                CouponCode = couponDetails.CouponCode,
+                Valid = couponDetails.Valid,
+                Redeemed = couponDetails.Redeemed,
+                ExpiresAt = couponDetails.ExpiresAt,
+                CampaignId = couponDetails.CampaignId,
+                AssignedTo = couponDetails.AssignedTo
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting coupon status for {CouponCode}", code);
+            return null;
+        }
+    }
+
+    public async Task<RedeemResponse> RedeemCouponAsync(RedeemRequest request, string? ipAddress, string? userAgent)
+    {
+        try
+        {
+            var couponCodeParam = new SqlParameter("@CouponCode", request.CouponCode);
+            var userIdParam = new SqlParameter("@UserId", request.UserId);
+            var ipAddressParam = new SqlParameter("@IpAddress", (object?)ipAddress ?? DBNull.Value);
+            var userAgentParam = new SqlParameter("@UserAgent", (object?)userAgent ?? DBNull.Value);
+            
+            var successParam = new SqlParameter
+            {
+                ParameterName = "@Success",
+                SqlDbType = SqlDbType.Bit,
+                Direction = ParameterDirection.Output
+            };
+            
+            var messageParam = new SqlParameter
+            {
+                ParameterName = "@Message",
+                SqlDbType = SqlDbType.NVarChar,
+                Size = 500,
+                Direction = ParameterDirection.Output
+            };
+            
+            var campaignIdParam = new SqlParameter
+            {
+                ParameterName = "@CampaignId",
+                SqlDbType = SqlDbType.NVarChar,
+                Size = 100,
+                Direction = ParameterDirection.Output
+            };
+
+            await _context.Database.ExecuteSqlRawAsync(
+                "EXEC sp_RedeemCoupon @CouponCode, @UserId, @IpAddress, @UserAgent, @Success OUTPUT, @Message OUTPUT, @CampaignId OUTPUT",
+                couponCodeParam, userIdParam, ipAddressParam, userAgentParam, successParam, messageParam, campaignIdParam);
+
+            var success = (bool)successParam.Value;
+            var message = messageParam.Value?.ToString() ?? "Error desconocido";
+            var campaignId = campaignIdParam.Value?.ToString() ?? string.Empty;
+
+            if (success)
+            {
+                _logger.LogInformation("Coupon {CouponCode} redeemed successfully by user {UserId}", 
+                    request.CouponCode, request.UserId);
+            }
+            else
+            {
+                _logger.LogWarning("Failed to redeem coupon {CouponCode} for user {UserId}: {Message}", 
+                    request.CouponCode, request.UserId, message);
+            }
+
+            return new RedeemResponse
+            {
+                Redeemed = success,
+                CouponCode = request.CouponCode,
+                Message = message,
+                CampaignId = campaignId
+            };
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error redeeming coupon {CouponCode} for user {UserId}", 
+                request.CouponCode, request.UserId);
+            
+            return new RedeemResponse
+            {
+                Redeemed = false,
+                CouponCode = request.CouponCode,
+                Message = "Error al procesar el canje del cupón",
+                CampaignId = string.Empty
+            };
+        }
+    }
+}
+
+// Helper class for sp_GetCouponDetails result
+public class CouponDetailsResult
+{
+    public string CouponCode { get; set; } = string.Empty;
+    public string CampaignId { get; set; } = string.Empty;
+    public bool Redeemed { get; set; }
+    public DateTime? RedeemedAt { get; set; }
+    public string? RedeemedBy { get; set; }
+    public DateTime ExpiresAt { get; set; }
+    public string? AssignedTo { get; set; }
+    public bool Valid { get; set; }
+}

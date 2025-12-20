@@ -1,0 +1,195 @@
+### Variables
+@redeemServiceUrl = http://localhost:5210
+@campaignServiceUrl = http://localhost:5277
+
+### ========================================
+### HEALTH CHECKS
+### ========================================
+
+### Health Check - RedeemService
+GET {{redeemServiceUrl}}/api/health
+
+### Health Check - CampaignService
+GET {{campaignServiceUrl}}/api/campaigns/health
+
+
+### ========================================
+### COUPON STATUS
+### ========================================
+
+### Get Coupon Status - CUPON10OFF
+GET {{redeemServiceUrl}}/api/coupon/CUPON10OFF
+
+### Get Coupon Status - DEMO50
+GET {{redeemServiceUrl}}/api/coupon/DEMO50
+
+### Get Coupon Status - Not Found (404)
+GET {{redeemServiceUrl}}/api/coupon/NOEXISTE123
+
+
+### ========================================
+### REDEEM COUPON
+### ========================================
+
+### Redeem - Success (CUPON10OFF)
+POST {{redeemServiceUrl}}/api/redeem
+Content-Type: application/json
+
+{
+  "couponCode": "CUPON10OFF",
+  "userId": "user-12345"
+}
+
+### Redeem - Success (DEMO50)
+POST {{redeemServiceUrl}}/api/redeem
+Content-Type: application/json
+
+{
+  "couponCode": "DEMO50",
+  "userId": "user-67890"
+}
+
+### Redeem - Already Redeemed (400)
+POST {{redeemServiceUrl}}/api/redeem
+Content-Type: application/json
+
+{
+  "couponCode": "CUPON10OFF",
+  "userId": "user-99999"
+}
+
+### Redeem - Not Found (400)
+POST {{redeemServiceUrl}}/api/redeem
+Content-Type: application/json
+
+{
+  "couponCode": "NOEXISTE999",
+  "userId": "user-12345"
+}
+
+### Redeem - Campaign Limit (400)
+# Primero canjear CUPON10OFF, luego intentar canjear DEMO50 con mismo user
+# (si ambos fueran de la misma campaña)
+POST {{redeemServiceUrl}}/api/redeem
+Content-Type: application/json
+
+{
+  "couponCode": "DEMO50",
+  "userId": "user-12345"
+}
+
+
+### ========================================
+### GENERATE COUPONS
+### ========================================
+
+### Generate - Small Batch (1,000 coupons)
+POST {{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-Demo/generate
+Content-Type: application/json
+
+{
+  "amount": 1000,
+  "prefix": "DEMO",
+  "expiration": "2025-12-31T23:59:59Z"
+}
+
+### Generate - Medium Batch (10,000 coupons)
+POST {{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-Test/generate
+Content-Type: application/json
+
+{
+  "amount": 10000,
+  "prefix": "TEST",
+  "expiration": "2025-12-31T23:59:59Z"
+}
+
+### Generate - Large Batch (50,000 coupons)
+POST {{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-BlackFriday/generate
+Content-Type: application/json
+
+{
+  "amount": 50000,
+  "prefix": "BF25",
+  "expiration": "2025-12-31T23:59:59Z"
+}
+
+### Generate - Max Batch (100,000 coupons)
+POST {{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-MegaSale/generate
+Content-Type: application/json
+
+{
+  "amount": 100000,
+  "prefix": "MEGA",
+  "expiration": "2025-12-31T23:59:59Z"
+}
+
+### Generate - Without Expiration
+POST {{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-NoExpiry/generate
+Content-Type: application/json
+
+{
+  "amount": 5000,
+  "prefix": "PROMO"
+}
+
+### Generate - Validation Error (amount > 1M)
+POST {{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-Invalid/generate
+Content-Type: application/json
+
+{
+  "amount": 2000000,
+  "prefix": "INVALID"
+}
+
+
+### ========================================
+### SCENARIO: Complete User Journey
+### ========================================
+
+### Step 1: Check if coupon exists
+GET {{redeemServiceUrl}}/api/coupon/CUPON10OFF
+
+### Step 2: Redeem the coupon
+POST {{redeemServiceUrl}}/api/redeem
+Content-Type: application/json
+
+{
+  "couponCode": "CUPON10OFF",
+  "userId": "journey-user-001"
+}
+
+### Step 3: Verify coupon is now redeemed
+GET {{redeemServiceUrl}}/api/coupon/CUPON10OFF
+
+### Step 4: Try to redeem again (should fail)
+POST {{redeemServiceUrl}}/api/redeem
+Content-Type: application/json
+
+{
+  "couponCode": "CUPON10OFF",
+  "userId": "journey-user-002"
+}
+
+
+### ========================================
+### SCENARIO: Campaign Limit Test
+### ========================================
+
+### Step 1: Redeem first coupon from BlackFriday campaign
+POST {{redeemServiceUrl}}/api/redeem
+Content-Type: application/json
+
+{
+  "couponCode": "CUPON10OFF",
+  "userId": "limit-test-user"
+}
+
+### Step 2: Try to redeem another coupon from same campaign (should fail)
+# Note: This would work if DEMO50 is from a different campaign
+POST {{redeemServiceUrl}}/api/redeem
+Content-Type: application/json
+
+{
+  "couponCode": "ANOTHER-BF-COUPON",
+  "userId": "limit-test-user"
+}

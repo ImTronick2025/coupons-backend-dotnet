@@ -1,0 +1,269 @@
+{
+  "info": {
+    "name": "Coupons Backend API",
+    "description": "Colección de ejemplos para el sistema de cupones promocionales",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "Health - RedeemService",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{redeemServiceUrl}}/api/health",
+              "host": ["{{redeemServiceUrl}}"],
+              "path": ["api", "health"]
+            }
+          }
+        },
+        {
+          "name": "Health - CampaignService",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{campaignServiceUrl}}/api/campaigns/health",
+              "host": ["{{campaignServiceUrl}}"],
+              "path": ["api", "campaigns", "health"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Coupon Status",
+      "item": [
+        {
+          "name": "Get Coupon Status - CUPON10OFF",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{redeemServiceUrl}}/api/coupon/CUPON10OFF",
+              "host": ["{{redeemServiceUrl}}"],
+              "path": ["api", "coupon", "CUPON10OFF"]
+            }
+          }
+        },
+        {
+          "name": "Get Coupon Status - DEMO50",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{redeemServiceUrl}}/api/coupon/DEMO50",
+              "host": ["{{redeemServiceUrl}}"],
+              "path": ["api", "coupon", "DEMO50"]
+            }
+          }
+        },
+        {
+          "name": "Get Coupon Status - Not Found",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{redeemServiceUrl}}/api/coupon/NOEXISTE123",
+              "host": ["{{redeemServiceUrl}}"],
+              "path": ["api", "coupon", "NOEXISTE123"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Redeem Coupon",
+      "item": [
+        {
+          "name": "Redeem - Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"couponCode\": \"CUPON10OFF\",\n  \"userId\": \"user-12345\"\n}"
+            },
+            "url": {
+              "raw": "{{redeemServiceUrl}}/api/redeem",
+              "host": ["{{redeemServiceUrl}}"],
+              "path": ["api", "redeem"]
+            }
+          }
+        },
+        {
+          "name": "Redeem - Already Redeemed",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"couponCode\": \"CUPON10OFF\",\n  \"userId\": \"user-99999\"\n}"
+            },
+            "url": {
+              "raw": "{{redeemServiceUrl}}/api/redeem",
+              "host": ["{{redeemServiceUrl}}"],
+              "path": ["api", "redeem"]
+            }
+          }
+        },
+        {
+          "name": "Redeem - Not Found",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"couponCode\": \"NOEXISTE999\",\n  \"userId\": \"user-12345\"\n}"
+            },
+            "url": {
+              "raw": "{{redeemServiceUrl}}/api/redeem",
+              "host": ["{{redeemServiceUrl}}"],
+              "path": ["api", "redeem"]
+            }
+          }
+        },
+        {
+          "name": "Redeem - DEMO50",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"couponCode\": \"DEMO50\",\n  \"userId\": \"user-67890\"\n}"
+            },
+            "url": {
+              "raw": "{{redeemServiceUrl}}/api/redeem",
+              "host": ["{{redeemServiceUrl}}"],
+              "path": ["api", "redeem"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Generate Coupons",
+      "item": [
+        {
+          "name": "Generate - Small Batch (1K)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 1000,\n  \"prefix\": \"DEMO\",\n  \"expiration\": \"2025-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-Demo/generate",
+              "host": ["{{campaignServiceUrl}}"],
+              "path": ["api", "campaigns", "CAMPAIGN-2025-Demo", "generate"]
+            }
+          }
+        },
+        {
+          "name": "Generate - Medium Batch (10K)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 10000,\n  \"prefix\": \"TEST\",\n  \"expiration\": \"2025-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-Test/generate",
+              "host": ["{{campaignServiceUrl}}"],
+              "path": ["api", "campaigns", "CAMPAIGN-2025-Test", "generate"]
+            }
+          }
+        },
+        {
+          "name": "Generate - Large Batch (50K)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50000,\n  \"prefix\": \"BF25\",\n  \"expiration\": \"2025-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-BlackFriday/generate",
+              "host": ["{{campaignServiceUrl}}"],
+              "path": ["api", "campaigns", "CAMPAIGN-2025-BlackFriday", "generate"]
+            }
+          }
+        },
+        {
+          "name": "Generate - Max Batch (100K)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 100000,\n  \"prefix\": \"MEGA\",\n  \"expiration\": \"2025-12-31T23:59:59Z\"\n}"
+            },
+            "url": {
+              "raw": "{{campaignServiceUrl}}/api/campaigns/CAMPAIGN-2025-MegaSale/generate",
+              "host": ["{{campaignServiceUrl}}"],
+              "path": ["api", "campaigns", "CAMPAIGN-2025-MegaSale", "generate"]
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "redeemServiceUrl",
+      "value": "http://localhost:5210",
+      "type": "string"
+    },
+    {
+      "key": "campaignServiceUrl",
+      "value": "http://localhost:5277",
+      "type": "string"
+    }
+  ]
+}

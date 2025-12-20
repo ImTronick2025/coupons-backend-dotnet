@@ -1,0 +1,28 @@
+# Kubernetes secrets con datos sensibles
+sql-secrets.yaml
+
+# Terraform
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.cache
+
+# Build artifacts
+bin/
+obj/
+out/
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,6 @@
+@RedeemService_HostAddress = http://localhost:5210
+
+GET {{RedeemService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

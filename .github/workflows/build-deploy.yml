@@ -1,0 +1,109 @@
+name: Build and Deploy Backend
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+env:
+  ACR_NAME: ${{ secrets.ACR_NAME }}
+  RESOURCE_GROUP: ${{ secrets.AZURE_RESOURCE_GROUP }}
+  AKS_CLUSTER: ${{ secrets.AKS_CLUSTER_NAME }}
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: '9.0.x'
+    
+    - name: Restore dependencies
+      run: dotnet restore
+    
+    - name: Build
+      run: dotnet build --no-restore --configuration Release
+    
+    - name: Test
+      run: dotnet test --no-build --configuration Release --verbosity normal
+
+  build-and-push-images:
+    runs-on: ubuntu-latest
+    needs: build-and-test
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Login to ACR
+      run: az acr login --name ${{ env.ACR_NAME }}
+    
+    - name: Build and push RedeemService
+      run: |
+        docker build -f src/RedeemService/Dockerfile -t ${{ env.ACR_NAME }}.azurecr.io/redeem-service:${{ github.sha }} .
+        docker build -f src/RedeemService/Dockerfile -t ${{ env.ACR_NAME }}.azurecr.io/redeem-service:latest .
+        docker push ${{ env.ACR_NAME }}.azurecr.io/redeem-service:${{ github.sha }}
+        docker push ${{ env.ACR_NAME }}.azurecr.io/redeem-service:latest
+    
+    - name: Build and push CampaignService
+      run: |
+        docker build -f src/CampaignService/Dockerfile -t ${{ env.ACR_NAME }}.azurecr.io/campaign-service:${{ github.sha }} .
+        docker build -f src/CampaignService/Dockerfile -t ${{ env.ACR_NAME }}.azurecr.io/campaign-service:latest .
+        docker push ${{ env.ACR_NAME }}.azurecr.io/campaign-service:${{ github.sha }}
+        docker push ${{ env.ACR_NAME }}.azurecr.io/campaign-service:latest
+    
+    - name: Build and push CouponGenerator
+      run: |
+        docker build -f src/CouponGenerator/Dockerfile -t ${{ env.ACR_NAME }}.azurecr.io/coupon-generator:${{ github.sha }} .
+        docker build -f src/CouponGenerator/Dockerfile -t ${{ env.ACR_NAME }}.azurecr.io/coupon-generator:latest .
+        docker push ${{ env.ACR_NAME }}.azurecr.io/coupon-generator:${{ github.sha }}
+        docker push ${{ env.ACR_NAME }}.azurecr.io/coupon-generator:latest
+
+  deploy-to-aks:
+    runs-on: ubuntu-latest
+    needs: build-and-push-images
+    if: github.ref == 'refs/heads/main'
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Azure Login
+      uses: azure/login@v2
+      with:
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+    
+    - name: Get AKS credentials
+      run: |
+        az aks get-credentials --resource-group ${{ env.RESOURCE_GROUP }} --name ${{ env.AKS_CLUSTER }}
+    
+    - name: Replace ACR_NAME in manifests
+      run: |
+        sed -i 's/<ACR_NAME>/${{ env.ACR_NAME }}/g' k8s/redeem-service.yaml
+        sed -i 's/<ACR_NAME>/${{ env.ACR_NAME }}/g' k8s/campaign-service.yaml
+    
+    - name: Deploy to AKS
+      run: |
+        kubectl apply -f k8s/redeem-service.yaml
+        kubectl apply -f k8s/campaign-service.yaml
+        kubectl apply -f k8s/ingress.yaml
+    
+    - name: Restart deployments
+      run: |
+        kubectl rollout restart deployment/redeem-service
+        kubectl rollout restart deployment/campaign-service
+    
+    - name: Wait for deployments
+      run: |
+        kubectl rollout status deployment/redeem-service --timeout=5m
+        kubectl rollout status deployment/campaign-service --timeout=5m
